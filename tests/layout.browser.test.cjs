@@ -9,7 +9,11 @@
  * mobile (390/320) must not overflow the body even with the shipped sample
  * loaded or a legal 40-char category imported (long schedule AND category
  * badges must wrap, and the stacked filters must not stretch to the widest
- * <option>), labels must stay visible, and print media must still hide the
+ * <option>), labels must stay visible, every .panel keeps its children inside
+ * its content box on narrow viewports too (the entry-form <fieldset> used to
+ * floor at min-content — UA min-width + date-input intrinsic width — and CI's
+ * Linux font metrics pushed it past a 320px viewport), a 300px viewport acts
+ * as the font-width proxy for that class, and print media must still hide the
  * app layout in favour of #print-root.
  *
  * Run with:  node tests/layout.browser.test.cjs
@@ -324,6 +328,75 @@ test('mobile long legal category (40 chars): no overflow at 390/320, badges wrap
       assert.ok(shortBadge.scrollWidth <= shortBadge.clientWidth + 1, 'Short category badge clipped at ' + width + 'px: ' + JSON.stringify(shortBadge));
       assert.ok(shortBadge.height < 32, 'Short category badge wrapped at ' + width + 'px (single-line look expected): ' + JSON.stringify(shortBadge));
       assert.ok(shortBadge.right <= shortBadge.viewport + 1, 'Short category badge escapes the viewport at ' + width + 'px: ' + JSON.stringify(shortBadge));
+    }
+  } finally { await context.close(); }
+});
+
+test('rejected import at 320/300: panels hold their content, no overflow (font-width proxy)', async () => {
+  // Fresh CI (Linux Chromium) caught 13px of body overflow at 320px in this
+  // state: the entry-form <fieldset> floors at min-content (UA min-width:
+  // min-content + the date inputs' intrinsic width) and already sat 4px past
+  // its own panel's content box on Windows. Same class as the earlier
+  // 1fr-floors-at-min-content column bug: fix the floor, then freeze it.
+  // 300px is not a supported width — it is the deterministic proxy for Linux's
+  // wider glyphs at 320px, so this regression is catchable on any platform.
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  try {
+    await openApp(page);
+    const dupDoc = {
+      format: 'vehicle-maintenance-timeline',
+      version: 1,
+      updatedAt: '2026-10-08T00:00:00.000Z',
+      vehicle: { nickname: 'Fictional Blue Wagon', odometer: 70000, unit: 'km' },
+      entries: [
+        { id: 'e-font-1', createdAt: '2026-10-08T00:00:00.000Z', date: '2026-10-01', mileage: 60000, category: 'Oil', description: 'Fictional record', parts: '', cost: null, receipt: '', notes: '', nextDate: null, nextMileage: null },
+        { id: 'e-font-1', createdAt: '2026-10-08T00:00:00.000Z', date: '2026-10-02', mileage: 60100, category: 'Oil', description: 'Duplicate id record', parts: '', cost: null, receipt: '', notes: '', nextDate: null, nextMileage: null },
+      ],
+    };
+    await page.locator('#import-text').fill(JSON.stringify(dupDoc));
+    await page.locator('#btn-import').click();
+    await page.waitForFunction(() => { const e = document.querySelector('#import-errors'); return e && !e.hidden && e.children.length > 0; });
+
+    for (const width of [320, 300]) {
+      await page.setViewportSize({ width, height: 844 });
+      await settle(page);
+      const m = await page.evaluate(() => {
+        const spills = [];
+        for (const p of document.querySelectorAll('.panel')) {
+          const pb = p.getBoundingClientRect();
+          const cs = getComputedStyle(p);
+          const innerLeft = pb.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+          const innerRight = pb.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight);
+          for (const el of p.querySelectorAll('*')) {
+            if (el.closest('.skip-link')) continue;
+            const eb = el.getBoundingClientRect();
+            if (eb.width < 0.5 && eb.height < 0.5) continue;
+            if (eb.right > innerRight + 1 || eb.left < innerLeft - 1) {
+              spills.push({
+                panel: p.id || '(no id)',
+                el: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') +
+                  (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : ''),
+                left: +eb.left.toFixed(1), right: +eb.right.toFixed(1),
+              });
+            }
+          }
+        }
+        const clientWidth = document.documentElement.clientWidth;
+        const bodyOverflow = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
+        const beyondRight = [];
+        for (const el of document.querySelectorAll('body *')) {
+          if (el.closest('.skip-link') || (el.classList && el.classList.contains('skip-link'))) continue;
+          const b = el.getBoundingClientRect();
+          if (b.width < 0.5 && b.height < 0.5) continue;
+          if (b.right > clientWidth + 1) beyondRight.push(el.tagName.toLowerCase() + (el.id ? '#' + el.id : ''));
+        }
+        return { clientWidth, bodyOverflow, beyondRight, spills };
+      });
+      console.log('[layout] rejected-import ' + width + 'px bodyOverflow=' + round(m.bodyOverflow) + 'px beyondRight=' + m.beyondRight.length + ' panelSpills=' + m.spills.length);
+      assert.ok(m.bodyOverflow <= 1, 'Body overflow at ' + width + ' px: ' + round(m.bodyOverflow) + ' px (font-width proxy: <fieldset> must not floor at min-content)');
+      assert.equal(m.beyondRight.length, 0, 'Elements escape the right edge at ' + width + 'px (rejected import): ' + JSON.stringify(m.beyondRight.slice(0, 8)));
+      assert.equal(m.spills.length, 0, 'Panel children spill their content box at ' + width + 'px (rejected import): ' + JSON.stringify(m.spills.slice(0, 8)));
     }
   } finally { await context.close(); }
 });

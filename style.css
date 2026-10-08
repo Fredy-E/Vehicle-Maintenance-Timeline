@@ -197,7 +197,7 @@ code, .mono { font-family: var(--mono); font-size: 0.92em; }
 
 /* ------------------------------------------------------------------- fields */
 
-.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; min-width: 0; }
 .field.grow { flex: 1 1 220px; }
 
 .field-row {
@@ -240,7 +240,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
   outline-offset: 2px;
 }
 
-.input-unit { display: flex; gap: 8px; align-items: stretch; }
+.input-unit { display: flex; gap: 8px; align-items: stretch; min-width: 0; }
 .input-unit input { flex: 1; }
 .input-unit .suffix {
   display: inline-flex;
@@ -259,6 +259,10 @@ fieldset.fieldset {
   border-radius: var(--radius-sm);
   padding: 12px 14px 4px;
   margin: 4px 0 12px;
+  /* UA default is min-width: min-content (date inputs floor it wider than
+     narrow viewports on some font stacks); let the fieldset share its
+     container's width instead. */
+  min-width: 0;
 }
 
 fieldset.fieldset legend {
@@ -558,7 +562,10 @@ fieldset.fieldset legend {
 }
 
 @media (max-width: 560px) {
-  .field-row { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr) matches the base rule: a plain 1fr floors the track at the
+     fields' min-content (date inputs are wide), and Linux fonts push that
+     past the viewport. */
+  .field-row { grid-template-columns: minmax(0, 1fr); }
   /* Stacked filters must not wrap. With flex-wrap retained, the column's flex
      lines are sized to the widest item's max-content — the category <select>
      grows to its longest legal 40-char <option> (332px) — and align-items:
