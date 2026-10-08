@@ -1,0 +1,578 @@
+/* ============================================================================
+   Vehicle Maintenance Timeline — style.css
+   Dark blue engineering logbook. Timeline motif: a rail with status markers.
+   No external fonts, no images, no CDN — everything renders from disk.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+  --bg: #080e19;
+  --bg-glow: #12244a;
+  --panel: #101a2b;
+  --panel-2: #0c1523;
+  --border: #263957;
+  --border-2: #35517c;
+  --text: #dce6f8;
+  --muted: #95a8c8;
+  --accent: #72adff;
+  --blue: #266deb;
+  --ok: #3ddc97;
+  --warn: #ffb454;
+  --danger: #ff6b6b;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+/* The hidden attribute must always win — several components set display
+   explicitly (flex/inline-flex), which would otherwise override the UA rule
+   for [hidden] and leave banners/buttons visible that should be hidden. */
+[hidden] { display: none !important; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 520px at 18% -8%, var(--bg-glow) 0%, transparent 62%),
+    linear-gradient(180deg, rgba(38, 109, 235, 0.05), transparent 320px),
+    var(--bg);
+  color: var(--text);
+  font: 15px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+code, .mono { font-family: var(--mono); font-size: 0.92em; }
+
+/* ---------------------------------------------------------------- skip link */
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--blue);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 0 0 var(--radius-sm) 0;
+  z-index: 50;
+}
+.skip-link:focus { left: 0; }
+
+/* ------------------------------------------------------------------- header */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 18px clamp(14px, 3vw, 30px) 14px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(8, 14, 25, 0.99), rgba(8, 14, 25, 0.95));
+  backdrop-filter: blur(8px);
+}
+
+.brand { min-width: 260px; }
+
+.eyebrow {
+  margin: 0 0 4px;
+  font: 11px var(--mono);
+  letter-spacing: 2.6px;
+  color: var(--accent);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: clamp(22px, 3.4vw, 34px);
+  font-weight: 650;
+  letter-spacing: -0.8px;
+}
+
+.tagline {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 62ch;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------- chip */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel-2);
+  max-width: 320px;
+}
+
+.chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 0 3px rgba(255, 180, 84, 0.18);
+  flex: 0 0 auto;
+}
+
+#storage-status[data-mode="storage"]::before {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.18);
+}
+
+#storage-status[data-mode="memory"] {
+  color: var(--warn);
+  border-color: rgba(255, 180, 84, 0.45);
+}
+
+/* ------------------------------------------------------------------- banner */
+
+.banner {
+  margin: 14px clamp(14px, 3vw, 30px) 0;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 107, 107, 0.5);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 107, 107, 0.08);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.banner p { margin: 6px 0 0; color: var(--text); }
+.banner .hint { color: var(--muted); font-size: 13px; }
+.banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ------------------------------------------------------------------- layout */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(330px, 430px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 18px clamp(14px, 3vw, 30px) 40px;
+}
+
+.col { display: grid; gap: 18px; align-content: start; }
+
+.panel {
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: 0 10px 30px rgba(2, 6, 14, 0.35);
+  /* Grid items default to min-width:auto, so wide intrinsic content (date/file
+     inputs, nowrap unit suffixes) must be prevented from pushing a panel past
+     its column track and over the timeline panel. */
+  min-width: 0;
+  scroll-margin-top: 96px; /* keep panels clear of the sticky header when scrolled into view */
+}
+
+.panel h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+  letter-spacing: -0.3px;
+}
+
+/* ------------------------------------------------------------------- fields */
+
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.field.grow { flex: 1 1 220px; }
+
+.field-row {
+  display: grid;
+  /* minmax(0, 1fr) lets both tracks shrink below the fields' intrinsic
+     minimum width; plain 1fr floors at min-content and overflows the column. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* Non-label spacer that keeps a button (Reset filters) aligned with the
+   labelled fields beside it; carries no text for assistive tech or the DOM. */
+.field-spacer { font-size: 13px; font-weight: 600; }
+
+.req { color: var(--accent); }
+
+input, select, textarea {
+  font: inherit;
+  color: var(--text);
+  background: #0b1322;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  min-width: 0;
+}
+
+textarea { resize: vertical; }
+
+input:hover, select:hover, textarea:hover { border-color: var(--border-2); }
+
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+.btn:focus-visible, .skip-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.input-unit { display: flex; gap: 8px; align-items: stretch; }
+.input-unit input { flex: 1; }
+.input-unit .suffix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px dashed var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+fieldset.fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px 4px;
+  margin: 4px 0 12px;
+}
+
+fieldset.fieldset legend {
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hint { color: var(--muted); font-size: 13px; margin: 4px 0 12px; }
+
+/* ------------------------------------------------------------------ buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: #17263f;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.btn:hover { border-color: var(--accent); background: #1d304f; }
+
+.btn.primary { background: var(--blue); border-color: #3c7bf0; color: #fff; }
+.btn.primary:hover { background: #3379f2; }
+
+.btn.ghost { background: transparent; }
+.btn.ghost:hover { background: rgba(114, 173, 255, 0.08); }
+
+.btn.danger { border-color: rgba(255, 107, 107, 0.6); color: #ffd9d9; background: rgba(255, 107, 107, 0.12); }
+.btn.danger:hover { background: rgba(255, 107, 107, 0.22); }
+
+.btn.small { padding: 5px 10px; font-size: 13px; }
+
+.form-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+/* -------------------------------------------------------------- error lists */
+
+.error-list {
+  margin: 8px 0 4px;
+  padding: 10px 12px 10px 28px;
+  border: 1px solid rgba(255, 107, 107, 0.45);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 107, 107, 0.08);
+  color: #ffd9d9;
+  font-size: 13px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* ------------------------------------------------------------------- badges */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-2);
+  background: rgba(114, 173, 255, 0.08);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* The schedule badge carries long, data-driven text ("Overdue: date passed
+   …; odometer past … km"). It must wrap on narrow screens instead of
+   inheriting .badge's nowrap, which overflows the viewport (390/320). */
+.entry-schedule { white-space: normal; }
+
+/* The category badge carries user text up to the legal 40-char maximum
+   (LIMITS.category in core.js). Like the schedule badge it must wrap on
+   narrow screens instead of inheriting .badge's nowrap, which overflowed
+   the viewport at 320px; a short category still renders on a single line. */
+.entry-category { white-space: normal; }
+
+.badge.status-overdue, .entry-schedule[data-status="overdue"] {
+  color: #ffd9d9;
+  border-color: rgba(255, 107, 107, 0.55);
+  background: rgba(255, 107, 107, 0.14);
+}
+
+.badge.status-due, .entry-schedule[data-status="due"] {
+  color: #ffe9c8;
+  border-color: rgba(255, 180, 84, 0.55);
+  background: rgba(255, 180, 84, 0.12);
+}
+
+.entry-schedule[data-status="unknown"] { color: var(--muted); }
+
+/* ------------------------------------------------------------------ filters */
+
+.filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 6px;
+}
+
+.filters .field { margin-bottom: 6px; min-width: 150px; }
+
+.summary {
+  margin: 4px 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+  font-family: var(--mono);
+}
+
+/* ------------------------------------------------------------------ timeline */
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 30px;
+  position: relative;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--border-2), rgba(53, 81, 124, 0.15));
+  border-radius: 2px;
+}
+
+.entry-card {
+  position: relative;
+  margin: 0 0 14px;
+  padding: 14px 16px 12px;
+  background: linear-gradient(180deg, #101c30, #0d1626);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.entry-marker {
+  position: absolute;
+  left: -22px;
+  top: 20px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--border-2);
+  box-shadow: 0 0 0 4px rgba(53, 81, 124, 0.25);
+}
+
+.entry-card[data-status="overdue"] { border-color: rgba(255, 107, 107, 0.45); }
+.entry-card[data-status="overdue"] .entry-marker {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.22);
+}
+
+.entry-card[data-status="due"] { border-color: rgba(255, 180, 84, 0.4); }
+.entry-card[data-status="due"] .entry-marker {
+  background: var(--warn);
+  box-shadow: 0 0 0 4px rgba(255, 180, 84, 0.2);
+}
+
+.entry-card[data-status="unknown"] .entry-marker {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(114, 173, 255, 0.16);
+}
+
+.entry-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.entry-date {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 0.4px;
+}
+
+.entry-mileage { color: var(--muted); font-size: 13px; }
+
+.entry-description { margin: 4px 0 6px; font-size: 15px; }
+
+.entry-line { margin: 2px 0; color: var(--muted); font-size: 13px; white-space: pre-wrap; }
+
+.entry-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+.empty-note {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border-2);
+  border-radius: var(--radius);
+  list-style: none;
+}
+
+/* ------------------------------------------------------------------- dialog */
+
+.confirm-dialog {
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #121f36, #0c1523);
+  color: var(--text);
+  max-width: 540px;
+  width: calc(100vw - 40px);
+  padding: 20px 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.confirm-dialog::backdrop { background: rgba(4, 8, 16, 0.72); backdrop-filter: blur(2px); }
+
+.confirm-dialog h2 { margin: 0 0 8px; font-size: 18px; }
+.confirm-dialog p { margin: 0 0 16px; color: var(--muted); white-space: pre-wrap; }
+
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* -------------------------------------------------------------------- toast */
+
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  max-width: 420px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-2);
+  background: #12233d;
+  color: var(--text);
+  font-size: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.toast[data-kind="ok"] { border-color: rgba(61, 220, 151, 0.5); }
+.toast[data-kind="warn"] { border-color: rgba(255, 180, 84, 0.55); }
+.toast[data-kind="error"] { border-color: rgba(255, 107, 107, 0.6); }
+
+/* ------------------------------------------------------------------- footer */
+
+.app-footer {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 clamp(14px, 3vw, 30px) 40px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.app-footer code { color: var(--accent); }
+
+/* ------------------------------------------------------------------- print */
+
+.print-only { display: none; }
+
+@media print {
+  :root { color-scheme: light; }
+
+  body { background: #fff; color: #000; }
+
+  .no-print, .app-header, .app-footer, .layout, .banner, .toast, .confirm-dialog { display: none !important; }
+
+  #print-root {
+    display: block !important;
+    color: #000;
+    font: 12px/1.5 "Segoe UI", system-ui, sans-serif;
+    padding: 0;
+  }
+
+  #print-root h1 { font-size: 20px; margin: 0 0 4px; }
+  #print-root h2 { font-size: 14px; margin: 18px 0 6px; }
+  #print-root table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  #print-root th, #print-root td {
+    border: 1px solid #999;
+    padding: 4px 6px;
+    text-align: left;
+    vertical-align: top;
+    font-size: 11px;
+  }
+  #print-root th { background: #eee; }
+  #print-root .print-meta { color: #444; font-size: 11px; }
+  #print-root .print-note { margin-top: 14px; color: #444; font-size: 10px; }
+}
+
+/* --------------------------------------------------------------- responsive */
+
+@media (max-width: 960px) {
+  .layout { grid-template-columns: 1fr; }
+  .app-header { align-items: flex-start; }
+}
+
+@media (max-width: 560px) {
+  .field-row { grid-template-columns: 1fr; }
+  /* Stacked filters must not wrap. With flex-wrap retained, the column's flex
+     lines are sized to the widest item's max-content — the category <select>
+     grows to its longest legal 40-char <option> (332px) — and align-items:
+     stretch then stretches every field to that width, pushing the row 47px
+     past a 320px viewport. A single stacked column is the only layout wanted
+     here, so wrapping is disabled outright. */
+  .filters { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+  .filters .field { min-width: 0; }
+  /* .field.grow keeps `flex: 1 1 220px` for the horizontal filters row; on the
+     stacked column axis that basis becomes a 220px-tall box (~178px of blank
+     space under the search input). Reset the basis so the field is
+     content-height in the stacked layout. */
+  .filters .field.grow { flex: 0 0 auto; }
+  .timeline { padding-left: 24px; }
+  .entry-marker { left: -19px; }
+  .header-actions { width: 100%; }
+}

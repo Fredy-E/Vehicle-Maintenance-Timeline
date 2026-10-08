@@ -1,0 +1,30 @@
+# Vehicle Maintenance Timeline — .gitignore
+# Runtime is dependency-free; Playwright is development-only.
+# Keep OS/editor clutter and local data out of the repository.
+
+# Development dependencies
+node_modules/
+test-results/
+playwright-report/
+private/
+exports/
+package-lock.json.bak
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS clutter
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs / caches / coverage (test evidence under tests/evidence/ is intentional
+# and NOT ignored — it documents the TDD red/green runs)
+*.log
+npm-debug.log*
+.npm/
+coverage/
+.cache/

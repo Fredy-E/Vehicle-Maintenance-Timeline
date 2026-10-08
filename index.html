@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vehicle Maintenance Timeline — offline service logbook</title>
+<meta name="description" content="Offline, local-only vehicle service timeline. No network, no accounts, no telemetry. Opens directly from disk.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="app-header no-print">
+  <div class="brand">
+    <p class="eyebrow">OFFLINE LOGBOOK — FILE:// READY</p>
+    <h1>Vehicle Maintenance Timeline</h1>
+    <p class="tagline">Service history on a rail: every record keeps its date, odometer and the next due point you set. Nothing leaves this browser.</p>
+  </div>
+  <div class="header-actions">
+    <span id="storage-status" class="chip" role="status" aria-live="polite" data-mode="memory" data-reason="no-storage" data-saved="">Storage: checking…</span>
+    <button id="btn-export-json" class="btn" type="button">Export JSON backup</button>
+    <button id="btn-print" class="btn ghost" type="button">Print report</button>
+  </div>
+</header>
+
+<div id="storage-banner" class="banner no-print" role="alert" hidden>
+  <div class="banner-body">
+    <strong>Stored data could not be read.</strong>
+    <p id="storage-banner-text"></p>
+    <p class="hint">Nothing has been overwritten. Download the raw data first if it matters to you.</p>
+  </div>
+  <div class="banner-actions">
+    <button id="btn-download-raw" class="btn" type="button">Download raw stored data</button>
+    <button id="btn-start-fresh" class="btn danger" type="button">Start fresh (discard stored data)</button>
+  </div>
+</div>
+
+<main id="main" class="layout">
+  <div class="col col-left">
+
+    <section class="panel" id="vehicle-panel" aria-labelledby="vehicle-heading">
+      <h2 id="vehicle-heading">Vehicle profile</h2>
+      <form id="vehicle-form" novalidate>
+        <div class="field">
+          <label for="vehicle-nickname">Nickname</label>
+          <input id="vehicle-nickname" name="nickname" type="text" maxlength="60" autocomplete="off" placeholder="e.g. Daily driver, Blue wagon…">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="vehicle-odometer">Current odometer</label>
+            <div class="input-unit">
+              <input id="vehicle-odometer" name="odometer" inputmode="numeric" autocomplete="off" placeholder="e.g. 68450">
+              <span id="unit-suffix-odometer" class="suffix" aria-hidden="true">km</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="vehicle-unit">Distance unit</label>
+            <select id="vehicle-unit" name="unit">
+              <option value="km">Kilometres (km)</option>
+              <option value="mi">Miles (mi)</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint" id="unit-policy-note">One unit per vehicle. Changing it re-labels records and never converts numbers — it asks for confirmation first.</p>
+        <button id="vehicle-save" class="btn" type="submit">Save vehicle profile</button>
+      </form>
+    </section>
+
+    <section class="panel" id="entry-panel" aria-labelledby="form-title">
+      <h2 id="form-title">Add a service record</h2>
+      <form id="entry-form" novalidate>
+        <input type="hidden" id="entry-id" value="">
+        <div class="field-row">
+          <div class="field">
+            <label for="entry-date">Service date <span class="req" aria-hidden="true">*</span></label>
+            <input id="entry-date" name="date" type="date" aria-required="true">
+          </div>
+          <div class="field">
+            <label for="entry-mileage">Odometer at service <span class="req" aria-hidden="true">*</span></label>
+            <div class="input-unit">
+              <input id="entry-mileage" name="mileage" inputmode="numeric" autocomplete="off" placeholder="e.g. 61240" aria-required="true">
+              <span id="unit-suffix-mileage" class="suffix" aria-hidden="true">km</span>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="entry-category">Category</label>
+            <input id="entry-category" name="category" type="text" maxlength="40" list="category-options" autocomplete="off" placeholder="e.g. Oil &amp; Filter">
+          </div>
+          <div class="field">
+            <label for="entry-cost">Cost</label>
+            <input id="entry-cost" name="cost" inputmode="decimal" autocomplete="off" placeholder="e.g. 68.50">
+          </div>
+        </div>
+        <div class="field">
+          <label for="entry-description">Description <span class="req" aria-hidden="true">*</span></label>
+          <textarea id="entry-description" name="description" rows="2" maxlength="2000" aria-required="true" placeholder="What was done?"></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="entry-parts">Parts used / replaced</label>
+            <input id="entry-parts" name="parts" type="text" maxlength="500" autocomplete="off" placeholder="e.g. Oil filter OF-2044">
+          </div>
+          <div class="field">
+            <label for="entry-receipt">Receipt reference</label>
+            <input id="entry-receipt" name="receipt" type="text" maxlength="200" autocomplete="off" placeholder="e.g. INV-2026-014">
+          </div>
+        </div>
+        <div class="field">
+          <label for="entry-notes">Notes</label>
+          <textarea id="entry-notes" name="notes" rows="2" maxlength="4000" placeholder="Anything worth remembering"></textarea>
+        </div>
+        <fieldset class="fieldset">
+          <legend>Next due (optional — you define it; nothing is inferred)</legend>
+          <div class="field-row">
+            <div class="field">
+              <label for="entry-next-date">Next due date</label>
+              <input id="entry-next-date" name="nextDate" type="date">
+            </div>
+            <div class="field">
+              <label for="entry-next-mileage">Next due mileage</label>
+              <div class="input-unit">
+                <input id="entry-next-mileage" name="nextMileage" inputmode="numeric" autocomplete="off" placeholder="e.g. 71240">
+                <span id="unit-suffix-next" class="suffix" aria-hidden="true">km</span>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+        <ul id="entry-errors" class="error-list" aria-live="assertive" hidden></ul>
+        <div class="form-actions">
+          <button id="entry-submit" class="btn primary" type="submit">Add service record</button>
+          <button id="entry-cancel" class="btn ghost" type="button" hidden>Cancel edit</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" id="import-panel" aria-labelledby="import-heading">
+      <h2 id="import-heading">Import &amp; sample data</h2>
+      <p class="hint">Import replaces the current data <strong>only after you confirm</strong>, and only if the file passes strict validation (version, types, size, count). A failed import changes nothing.</p>
+      <div class="field">
+        <label for="import-file">Choose a JSON backup file</label>
+        <input id="import-file" type="file" accept=".json,application/json">
+      </div>
+      <div class="field">
+        <label for="import-text">…or paste JSON here</label>
+        <textarea id="import-text" rows="4" spellcheck="false" placeholder='{"format":"vehicle-maintenance-timeline","version":1,…}'></textarea>
+      </div>
+      <ul id="import-errors" class="error-list" aria-live="assertive" hidden></ul>
+      <div class="form-actions">
+        <button id="btn-import" class="btn primary" type="button">Validate &amp; import…</button>
+        <button id="btn-load-sample" class="btn ghost" type="button">Load fictional sample</button>
+      </div>
+    </section>
+
+  </div>
+
+  <section class="panel timeline-panel" id="timeline-panel" aria-labelledby="timeline-heading">
+    <h2 id="timeline-heading">Service timeline</h2>
+    <div class="filters" role="search">
+      <div class="field grow">
+        <label for="filter-search">Search records</label>
+        <input id="filter-search" type="search" placeholder="Search description, parts, receipt…  (press /)">
+      </div>
+      <div class="field">
+        <label for="filter-category">Category</label>
+        <select id="filter-category"><option value="">All categories</option></select>
+      </div>
+      <div class="field">
+        <label for="filter-status">Next-due status</label>
+        <select id="filter-status">
+          <option value="">All</option>
+          <option value="overdue">Overdue</option>
+          <option value="due">Due</option>
+          <option value="unknown">Unknown / not set</option>
+        </select>
+      </div>
+      <div class="field">
+        <span class="field-spacer" aria-hidden="true">&nbsp;</span>
+        <button id="filter-reset" class="btn ghost" type="button">Reset filters</button>
+      </div>
+    </div>
+    <p id="list-summary" class="summary" aria-live="polite"></p>
+    <ol id="entry-list" class="timeline" aria-label="Service records, newest first"></ol>
+  </section>
+</main>
+
+<footer class="app-footer no-print">
+  <p>
+    All data stays in this browser under the <code>localStorage</code> key <code>vehicle-maintenance-timeline:v1</code>.
+    There is no server, no CDN, no analytics, no telemetry. Export a JSON backup regularly —
+    browsers can clear <code>file://</code> storage without asking.
+  </p>
+  <p class="hint">Sample data shipped with this app is explicitly fictional. Never enter real personal data you do not want in a browser profile.</p>
+</footer>
+
+<template id="entry-card-template">
+  <li class="entry-card" data-status="unknown">
+    <span class="entry-marker" aria-hidden="true"></span>
+    <div class="entry-body">
+      <div class="entry-head">
+        <span class="entry-date"></span>
+        <span class="entry-mileage mono"></span>
+        <span class="entry-category badge"></span>
+        <span class="entry-schedule badge" data-status="unknown"></span>
+      </div>
+      <p class="entry-description"></p>
+      <p class="entry-line entry-parts" hidden></p>
+      <p class="entry-line entry-cost" hidden></p>
+      <p class="entry-line entry-receipt" hidden></p>
+      <p class="entry-line entry-notes" hidden></p>
+      <div class="entry-actions">
+        <button type="button" class="btn ghost small entry-edit">Edit</button>
+        <button type="button" class="btn ghost small danger entry-delete">Delete</button>
+      </div>
+    </div>
+  </li>
+</template>
+
+<dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+  <h2 id="confirm-title">Confirm</h2>
+  <p id="confirm-message"></p>
+  <div class="dialog-actions">
+    <button id="confirm-cancel" class="btn ghost" type="button">Cancel</button>
+    <button id="confirm-accept" class="btn primary" type="button">Confirm</button>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<section id="print-root" class="print-only" hidden aria-hidden="true"></section>
+
+<datalist id="category-options"></datalist>
+
+<noscript>
+  <p class="banner">This app needs JavaScript to run — it is fully offline, but the timeline, storage and import/export logic all run in the page.</p>
+</noscript>
+
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
